@@ -1,0 +1,28 @@
+﻿<Page
+    x:Class="mandelbrot.MainPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:mandelbrot"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <Grid Background="#FF402010"  ManipulationMode="All" ManipulationDelta="Board_ManipulationDelta" SizeChanged="Grid_SizeChanged">
+        <Image x:Name="Board"  Width="500" Height="500" Stretch="UniformToFill" PointerWheelChanged="Board_PointerWheelChanged"/>
+        <AppBar VerticalAlignment="Bottom">
+            <StackPanel Orientation="Horizontal">
+                <AppBarButton x:Name="play" Label="Play" Icon="Play" Click="play_Click"/>
+                <AppBarElementContainer>
+                    <Slider x:Name="MaxIter" Value="256" Margin="5,0,0,0" StepFrequency="8" TickFrequency="8" Header="maxIteration" Width="100" Minimum="16" Maximum="256" ValueChanged="MaxIter_ValueChanged"></Slider>
+                </AppBarElementContainer>
+                <AppBarElementContainer>
+                    <Slider x:Name="DivergenceLimit" Value="2" Margin="5,0,0,0" Header="DivergeanceOffset" Width="150" Minimum="0.01" Maximum="5" TickFrequency="1" StepFrequency="0.01" ValueChanged="DivergenceLimit_ValueChanged"></Slider>
+                </AppBarElementContainer>
+                <AppBarElementContainer>
+                    <Slider x:Name="Resolution" Value="2" Margin="5,0,0,0" Header="Resolution(X=Y)" Width="150" Minimum="500" Maximum="1270" TickFrequency="1" StepFrequency="0.01" ValueChanged="Resolution_ValueChanged"></Slider>
+                </AppBarElementContainer>
+            </StackPanel>
+        </AppBar>
+    </Grid>
+</Page>
