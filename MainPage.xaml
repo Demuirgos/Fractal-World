@@ -10,17 +10,30 @@
 
     <Grid Background="#FF402010"  ManipulationMode="All" ManipulationDelta="Board_ManipulationDelta" SizeChanged="Grid_SizeChanged">
         <Image x:Name="Board"  Width="500" Height="500" Stretch="UniformToFill" PointerWheelChanged="Board_PointerWheelChanged"/>
+        <MenuBar VerticalAlignment="Top">
+            <MenuBarItem Title="Fractals :" >
+                <MenuBarItem.Background>
+                    <SolidColorBrush Color="SlateGray" Opacity="0.5"/>
+                </MenuBarItem.Background>
+                <MenuFlyoutItem x:Name="MandelBrot" Text="MandelBrot" Click="MandelBrot_Click"/>
+                <MenuFlyoutItem x:Name="JuliaSet" Text="Julia" Click="JuliaSet_Click"/>
+                <MenuFlyoutItem Text="Coming Soon!"/>
+            </MenuBarItem>
+        </MenuBar>
         <AppBar VerticalAlignment="Bottom">
             <StackPanel Orientation="Horizontal">
                 <AppBarButton x:Name="play" Label="Play" Icon="Play" Click="play_Click"/>
                 <AppBarElementContainer>
-                    <Slider x:Name="MaxIter" Value="256" Margin="5,0,0,0" StepFrequency="8" TickFrequency="8" Header="maxIteration" Width="100" Minimum="16" Maximum="256" ValueChanged="MaxIter_ValueChanged"></Slider>
+                    <Slider x:Name="MaxIter" Value="256" Margin="5,0,0,0" StepFrequency="8" TickFrequency="8" Header="maxIteration" Width="100" Minimum="16" Maximum="512" ValueChanged="MaxIter_ValueChanged"></Slider>
                 </AppBarElementContainer>
                 <AppBarElementContainer>
                     <Slider x:Name="DivergenceLimit" Value="2" Margin="5,0,0,0" Header="DivergeanceOffset" Width="150" Minimum="0.01" Maximum="5" TickFrequency="1" StepFrequency="0.01" ValueChanged="DivergenceLimit_ValueChanged"></Slider>
                 </AppBarElementContainer>
                 <AppBarElementContainer>
                     <Slider x:Name="Resolution" Value="2" Margin="5,0,0,0" Header="Resolution(X=Y)" Width="150" Minimum="500" Maximum="1270" TickFrequency="1" StepFrequency="0.01" ValueChanged="Resolution_ValueChanged"></Slider>
+                </AppBarElementContainer>
+                <AppBarElementContainer>
+                    <ToggleSwitch x:Name="Animate" Margin="5,0,0,0" Header="Animate :" Toggled="Animate_Toggled"/>
                 </AppBarElementContainer>
             </StackPanel>
         </AppBar>
