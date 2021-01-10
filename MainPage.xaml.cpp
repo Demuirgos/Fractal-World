@@ -65,52 +65,6 @@ void mandelbrot::MainPage::play_Click(Platform::Object^ sender, Windows::UI::Xam
 	updateConcurrent();
 }
 
-/*
-int mandelbrot::MainPage::iter(double x, double y, int max,float limit)
-{
-	using namespace std;
-	int i = 0;
-	complex<double> z(x,y);
-	complex<double> r(0,0);
-	while (i < max && abs(r) < limit) {
-		r = r * r + z;
-		i++;
-	}
-	if (x == 0 && y == 0)
-		int s = i;
-	return i;
-}
-
-void mandelbrot::MainPage::OnTick(Platform::Object^ sender, Platform::Object^ args)
-{
-	updateConcurrent();
-}
-
-void mandelbrot::MainPage::update()
-{
-	double width = this->Board->Width;
-	double height = this->Board->Height;
-	auto wb = ref new Imaging::WriteableBitmap(width, height);
-	byte* imageArray = GetPointerToPixelData(wb->PixelBuffer);
-	for (double i = 0; i < height; i++)
-	{
-		for (double j = 0; j < width; j++) {
-			int pos = (i * width + j) * 4;
-			double y = (i / (height - 1)) * disP.Y + minP.Y;
-			double x = (j / (width - 1)) * disP.X + minP.X;
-			int iterPause = iter(x, y, max, limit);
-			imageArray[pos] = iterPause % 16 * 16; // Blue
-			imageArray[pos + 1] = iterPause % 8 * 32;  // Green
-			imageArray[pos + 2] = iterPause % 4 * 64; // Red
-			imageArray[pos + 3] = 255; // Alpha
-		}
-
-	}
-
-	this->Board->Source = wb;
-}
-*/
-
 void mandelbrot::MainPage::updateConcurrent()
 {
 	double width = this->resP.X;
