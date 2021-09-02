@@ -9,9 +9,11 @@
 #include <ppl.h>
 #include "MainPage.xaml.h"
 #include <robuffer.h>
+#include <amp_math.h>
 
 using namespace mandelbrot;
-using namespace Platform;
+using namespace Platform; 
+using namespace concurrency::precise_math;
 using namespace Windows::Foundation;
 using namespace Windows::Foundation::Collections;
 using namespace Windows::UI::Xaml;
@@ -56,6 +58,11 @@ byte* mandelbrot::MainPage::GetPointerToPixelData(IBuffer^ buffer)
 	return pixels;
 }
 
+double power(double d, int n) restrict(amp) {
+	double r = 1;
+	while (n--) r *= d;
+	return r;
+}
 
 void mandelbrot::MainPage::play_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e)
 {
@@ -77,7 +84,7 @@ void mandelbrot::MainPage::updateConcurrent()
 	double disX = disP.X; double disY = disP.Y;
 	double lim = this->limit; int max = this->max;
 	int fractalIndex = this->fractalChosen;double initjulia = this->juliaInit;
-	int* holder = new int[len];
+	int* holder = new int[len]; int multiJulia = this->powerMJ;
 	array_view<int, 1> textureView(len,holder);
 	concurrency::parallel_for_each(textureView.extent, [=](index<1> idx) restrict(amp)
 		{
@@ -91,15 +98,15 @@ void mandelbrot::MainPage::updateConcurrent()
 				auto MandelBrot = [=](double x,double y) restrict(amp)
 				{
 					int iter = 0;
-					double cx = x;
-					double cy = y;
+					double c_x = x;
+					double c_y = y;
 					double z_x = 0;
 					double z_y = 0;
-					double total = (cx * cx) + (cy * cy);
+					double total = (c_x * c_x) + (c_y * c_y);
 					while (iter < max && total < lim) {
 						double x_temporary = z_x;
-						z_x = (z_x * z_x) - (z_y * z_y) + cx;
-						z_y = (2 * x_temporary * z_y) + cy;
+						z_x = (z_x * z_x) - (z_y * z_y) + c_x;
+						z_y = (2 * x_temporary * z_y) + c_y;
 						total = (z_x * z_x) + (z_y * z_y);
 						iter++;
 					}
@@ -108,16 +115,48 @@ void mandelbrot::MainPage::updateConcurrent()
 				auto JuliaSet = [=](double x, double y) restrict(amp)
 				{
 					int iter = 0;
-					double cx = initjulia;
-					double cy = 0.651;
+					double c_x = initjulia;
+					double c_y = 0.651;
 					double z_x = x;
 					double z_y = y;
-					double total = (cx * cx) + (cy * cy);
+					double total = (c_x * c_x) + (c_y * c_y);
 					while (iter < max && total < lim) {
 						double x_temporary = z_x;
-						z_x = (z_x * z_x) - (z_y * z_y) + cx;
-						z_y = (2 * x_temporary * z_y) + cy;
+						z_x = (z_x * z_x) - (z_y * z_y) + c_x;
+						z_y = (2 * x_temporary * z_y) + c_y;
 						total = (z_x * z_x) + (z_y * z_y);
+						iter++;
+					}
+					return iter;
+				};
+				auto BurningShip = [=](double x, double y) restrict(amp){
+					int iter = 0;
+					double c_x = x; 
+					double c_y = y;
+					double z_x = 0; 
+					double z_y = 0; 
+					while(z_x*z_x + z_y*z_y < 4 && iter < max){
+						double temp_x = z_x*z_x - z_y*z_y + c_x;
+						z_y = 2 * z_x * z_y + c_y; z_y = z_y > 0 ? z_y : -z_y;
+						z_x = temp_x;
+						iter++;
+					}
+					return iter;
+				};
+				auto MultiJulia = [=](double x, double y, int n) restrict(amp) {
+					double R = 1;
+					while (power(R, n) - R <= sqrt(x * x + y * y)) R++;
+					double c_x = x;
+					double c_y = y;
+					double z_x = 0;
+					double z_y = 0;
+					int iter = 0;
+					while (z_x * z_x + z_y * z_y < R * R  &&  iter < max)
+					{
+						double xtmp = power((z_x * z_x + z_y * z_y), (n / 2)) * cos(n * atan2(z_y, z_x)) + c_x;
+						z_y = power((z_x * z_x + z_y * z_y), (n / 2)) * sin(n * atan2(z_y, z_x)) + c_y;
+						z_x = xtmp;
+
 						iter++;
 					}
 					return iter;
@@ -129,6 +168,12 @@ void mandelbrot::MainPage::updateConcurrent()
 					break;
 				case 1:
 					reached = JuliaSet(x, y);
+					break;
+				case 2:
+					reached = BurningShip(x, y);
+					break;
+				case 3:
+					reached = MultiJulia(x, y, multiJulia);
 					break;
 				default:
 					reached = 0;
@@ -218,6 +263,18 @@ void mandelbrot::MainPage::MandelBrot_Click(Platform::Object^ sender, Windows::U
 	updateConcurrent();
 }
 
+void mandelbrot::MainPage::MultiSets_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e)
+{
+	this->fractalChosen = 3;
+	updateConcurrent();
+}
+
+void mandelbrot::MainPage::BurningShip_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e)
+{
+	this->fractalChosen = 2;
+	updateConcurrent();
+}
+
 
 void mandelbrot::MainPage::JuliaSet_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e)
 {
@@ -239,10 +296,10 @@ void mandelbrot::MainPage::Animate_Toggled(Platform::Object^ sender, Windows::UI
 
 void mandelbrot::MainPage::OnTick(Platform::Object^ sender, Platform::Object^ args)
 {
-	if (this->fractalChosen == 0) {
+	if (this->fractalChosen % 2 == 0) {
 		Zoom(false);
 	}
-	else if (this->fractalChosen = 1) {
+	else if (this->fractalChosen % 2 == 1) {
 		this->juliaInit += isReversing?-0.01:0.01;
 		if (this->juliaInit > 1) {
 			this->isReversing = true;
@@ -252,4 +309,13 @@ void mandelbrot::MainPage::OnTick(Platform::Object^ sender, Platform::Object^ ar
 		}
 	}
 	updateConcurrent();
+}
+
+
+void mandelbrot::MainPage::Nthpower_ValueChanged(Platform::Object^ sender, Windows::UI::Xaml::Controls::Primitives::RangeBaseValueChangedEventArgs^ e)
+{
+	if (this->fractalChosen == 3) {
+		this->powerMJ = dynamic_cast<Slider^>(sender)->Value;
+		updateConcurrent();
+	}
 }

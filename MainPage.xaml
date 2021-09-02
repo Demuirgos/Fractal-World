@@ -17,6 +17,8 @@
                 </MenuBarItem.Background>
                 <MenuFlyoutItem x:Name="MandelBrot" Text="MandelBrot" Click="MandelBrot_Click"/>
                 <MenuFlyoutItem x:Name="JuliaSet" Text="Julia" Click="JuliaSet_Click"/>
+                <MenuFlyoutItem x:Name="BurningShip" Text="BurningShip" Click="BurningShip_Click"/>
+                <MenuFlyoutItem x:Name="MultiSets" Text="MultiSets" Click="MultiSets_Click"/>
                 <MenuFlyoutItem Text="Coming Soon!"/>
             </MenuBarItem>
         </MenuBar>
@@ -34,6 +36,9 @@
                 </AppBarElementContainer>
                 <AppBarElementContainer>
                     <ToggleSwitch x:Name="Animate" Margin="5,0,0,0" Header="Animate :" Toggled="Animate_Toggled"/>
+                </AppBarElementContainer>
+                <AppBarElementContainer>
+                    <Slider x:Name="Nthpower" Value="5" Margin="5,0,0,0" Header="MultijuliaPower" Width="150" Minimum="2" Maximum="23" TickFrequency="1" StepFrequency="1" ValueChanged="Nthpower_ValueChanged"></Slider>
                 </AppBarElementContainer>
             </StackPanel>
         </AppBar>

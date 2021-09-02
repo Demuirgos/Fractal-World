@@ -23,6 +23,7 @@ namespace mandelbrot
 		int limit = 2;
 		int max = 256;
 		float zoom = 150;
+		int powerMJ = 5;
 		Windows::Foundation::Point minP;
 		Windows::Foundation::Point maxP;
 		Windows::Foundation::Point resP;
@@ -53,8 +54,11 @@ namespace mandelbrot
 		void Grid_SizeChanged(Platform::Object^ sender, Windows::UI::Xaml::SizeChangedEventArgs^ e);
 		void Resolution_ValueChanged(Platform::Object^ sender, Windows::UI::Xaml::Controls::Primitives::RangeBaseValueChangedEventArgs^ e);
 		void MandelBrot_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e);
+		void MultiSets_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e);
+		void BurningShip_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e);
 		void JuliaSet_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e);
 		void Animate_Toggled(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e);
 		void OnTick(Platform::Object^ sender, Platform::Object^ args);
+		void Nthpower_ValueChanged(Platform::Object^ sender, Windows::UI::Xaml::Controls::Primitives::RangeBaseValueChangedEventArgs^ e);
 	};
 }
