@@ -19,11 +19,24 @@ namespace mandelbrot
 		property Windows::Foundation::Point disP {
 			Windows::Foundation::Point get() { return Windows::Foundation::Point(maxP.X - minP.X, maxP.Y - minP.Y); }
 		}
+		property int FractalChosen {
+			int get() { return this->fractalChosen; }
+			void set(int v) { 
+				this->fractalChosen = v;
+				if(v != 3 ){
+					this->Nthpower->Visibility = Windows::UI::Xaml::Visibility::Collapsed;
+				} else {
+					this->Nthpower->Visibility = Windows::UI::Xaml::Visibility::Visible;
+				}
+			}
+		}
 	private:
 		int limit = 2;
 		int max = 256;
 		float zoom = 150;
 		int powerMJ = 5;
+		double alpha = 0.0;
+		double beta = 0.0;
 		Windows::Foundation::Point minP;
 		Windows::Foundation::Point maxP;
 		Windows::Foundation::Point resP;
@@ -38,7 +51,6 @@ namespace mandelbrot
 		void updateConcurrent();
 
 		//julia specific csts
-		double juliaInit = -0.1;
 		bool isReversing = false;
 
 		//Mandel specific csts
@@ -60,5 +72,8 @@ namespace mandelbrot
 		void Animate_Toggled(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e);
 		void OnTick(Platform::Object^ sender, Platform::Object^ args);
 		void Nthpower_ValueChanged(Platform::Object^ sender, Windows::UI::Xaml::Controls::Primitives::RangeBaseValueChangedEventArgs^ e);
+		void Alpha_ValueChanged(Platform::Object^ sender, Windows::UI::Xaml::Controls::Primitives::RangeBaseValueChangedEventArgs^ e);
+		void Beta_ValueChanged(Platform::Object^ sender, Windows::UI::Xaml::Controls::Primitives::RangeBaseValueChangedEventArgs^ e);
+		void Attractors_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e);
 	};
 }
