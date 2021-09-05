@@ -2,7 +2,6 @@
 // MainPage.xaml.cpp
 // Implementation of the MainPage class.
 //
-
 #include "pch.h"
 #include <amp.h>
 #include <windows.h>
@@ -10,6 +9,14 @@
 #include "MainPage.xaml.h"
 #include <robuffer.h>
 #include <amp_math.h>
+#include "inc/amp_tinymt_rng.h"
+
+#define TO_XY(idnx, minX, minY, disX, disY, height, width) \
+		double y = ((idnx / width) / (height - 1)) * disY + minY, x = ((idnx % (int)width) / (width - 1)) * disX + minX;
+#define FROM_XY(x, y, minX, minY, disX, disY, height, width) \
+		int idx = (int)(((y - minY) * (height - 1) / disY * width) + ((x - minX) * (width - 1) / disX));
+#define ROTATE_BY(n) for(int i =0; i < n; i++) { double t = x; x = -y; y = t; }
+#define FLIP(H, V) x = H ? -x : x; y = V ? -y : y; 
 
 using namespace mandelbrot;
 using namespace Platform; 
@@ -72,12 +79,20 @@ double norm(double a, double m, double n) restrict(amp) {
 	return (a - m) / (m - n);
 }
 
+double fmod(double a, int m) restrict(amp) {
+	int n = (int)a;
+	int r = n % m;
+	return (a - n) + r;
+}
+
 void mandelbrot::MainPage::play_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e)
 {
-	minP = Windows::Foundation::Point(-2, -2);
-	maxP = Windows::Foundation::Point(2, 2);
-	this->alphaV->Value = -0.1;
-	updateConcurrent();
+	this->play->IsEnabled = false;
+	this->pause->IsEnabled = true;
+	if (!this->isAnimating) {
+		this->Animator->Start();
+		this->isAnimating = true;
+	}
 }
 
 void mandelbrot::MainPage::updateConcurrent()
@@ -93,117 +108,118 @@ void mandelbrot::MainPage::updateConcurrent()
 	       alpha = this->alpha, beta = this->beta;
 	int fractalIndex = this->FractalChosen;
 	int* holder = new int[len]; int multiJulia = this->powerMJ;
+	memset(holder, 0, len * sizeof(int));
 	array_view<int, 1> textureView(len,holder);
+	bool has_red = this->Red->IsChecked->Value,
+		has_green = this->Green->IsChecked->Value,
+		has_blue = this->Blue->IsChecked->Value,
+		is_HSV = this->HSLM->IsChecked->Value;
+	int alphaSrc = this->alphaRgb->Value; int alphaVal = rand() % 255;
+	int rotations = this->rotation; bool FlipH = this->horizFlip;
+									bool FlipV = this->vertFlip;
 	concurrency::parallel_for_each(textureView.extent, [=](index<1> idx) restrict(amp)
 		{
-				int idnx = idx[0];
-				double y_int = idnx / width;
-				double x_int = idnx % (int)width;
-				double y = (y_int / (height - 1)) * disY + minY;
-				double x = (x_int / (width - 1)) * disX + minX;
-				auto MandelBrot = [=](double x,double y) restrict(amp)
-				{
-					int iter = 0;
-					double c_x = x;
-					double c_y = y;
-					double z_x = alpha;
-					double z_y = beta;
+				int idnx = idx[0]; 
+				TO_XY(idnx, minX, minY, disX, disY, height, width);
+				auto Color = [](int mode,int reached, bool has_r, bool has_g, bool has_b, int is_a) {
+					if (mode == 0) {
+						int b = ((has_b ? reached : 0) % 16 * 16), g = ((has_g ? reached : 0) % 8 * 32);
+						int r = ((has_r ? reached : 0) %  4 * 64), a = is_a & 0x0ff;
+						return ((a & 0x0ff) << 24) | ((r & 0x0ff) << 16) | ((g & 0x0ff) << 8) | (b & 0x0ff);
+					} else {
+						int H = (reached % 16 * 16) % 360, S = (reached % 8 * 32) % 100, V = (reached % 4 * 64) % 100;
+						float s = S / 100;
+						float v = V / 100;
+						float C = s * v;
+						float X = C * (1 - abs(fmod(H / 60.0, 2) - 1));
+						float m = v - C;
+						float r, g, b;
+						if (H >= 0 && H < 60) {
+							r = C, g = X, b = 0;
+						}
+						else if (H >= 60 && H < 120) {
+							r = X, g = C, b = 0;
+						}
+						else if (H >= 120 && H < 180) {
+							r = 0, g = C, b = X;
+						}
+						else if (H >= 180 && H < 240) {
+							r = 0, g = X, b = C;
+						}
+						else if (H >= 240 && H < 300) {
+							r = X, g = 0, b = C;
+						}
+						else {
+							r = C, g = 0, b = X;
+						}
+						int red = (r + m) * 255;
+						int green = (g + m) * 255;
+						int blue = (b + m) * 255;
+						return ((255 & 0x0ff) << 24) | 
+							   ((red & 0x0ff) << 16) | 
+							   ((green & 0x0ff) << 8)|
+							   (blue & 0x0ff);
+					}
+				};
+				double c_x, c_y, z_x, z_y;
+				int iter = 0, reached = 0;
+				ROTATE_BY(rotations);
+				FLIP(FlipH, FlipV)
+				if (fractalIndex == 0 || fractalIndex == 1) {
+					iter = 0;
+					switch (fractalIndex) {
+					case 0:
+						c_x = x; c_y = y; z_x = alpha; z_y = beta; break;
+					case 1:
+						c_x = alpha; c_y = beta; z_x = x; z_y = y; break;
+					}
 					while (iter < max && (z_x * z_x) + (z_y * z_y) < lim) {
 						double x_temporary = z_x;
 						z_x = (z_x * z_x) - (z_y * z_y) + c_x;
 						z_y = (2 * x_temporary * z_y) + c_y;
 						iter++;
 					}
-					return iter;
-				};
-				auto JuliaSet = [=](double x, double y) restrict(amp)
-				{
-					int iter = 0;
-					double c_x = alpha;
-					double c_y = beta;
-					double z_x = x;
-					double z_y = y;
-					double total = (c_x * c_x) + (c_y * c_y);
-					while (iter < max && total < lim) {
-						double x_temporary = z_x;
-						z_x = (z_x * z_x) - (z_y * z_y) + c_x;
-						z_y = (2 * x_temporary * z_y) + c_y;
-						total = (z_x * z_x) + (z_y * z_y);
+					reached = iter;
+					textureView[idnx] = Color((int)is_HSV,reached, has_red, has_green, has_blue, alphaSrc == 0 ? 255 : alphaSrc == 1 ? reached : alphaVal);
+				}
+				else if (fractalIndex == 3 || fractalIndex == 4) {
+					double R = 1; iter = 0;
+					int n = multiJulia;
+					while (power(R, n) - R <= sqrt(x * x + y * y)) R++;
+					switch (fractalIndex)
+					{
+					case 3:
+						c_x = x; c_y = y; z_x = alpha; z_y = beta; break;
+					case 4:
+						c_x = alpha; c_y = beta; z_x = x; z_y = y; break;
+					}
+					while (z_x * z_x + z_y * z_y < R * R && iter < max)
+					{
+						double xtmp = power((z_x * z_x + z_y * z_y), (n / 2)) * cos(n * atan2(z_y, z_x)) + c_x;
+						z_y = power((z_x * z_x + z_y * z_y), (n / 2)) * sin(n * atan2(z_y, z_x)) + c_y;
+						z_x = xtmp;
 						iter++;
 					}
-					return iter;
-				};
-				auto duckAlgo = [=](double x, double y) restrict(amp) {
-					int iter = 0;
-					double c_x = x;
-					double c_y = y;
-					double z_x = alpha;
-					double z_y = beta;
-					while (z_x * z_x + z_y * z_y < 4 && iter < max) {
-						double tempx = z_x;
-						z_x = z_x * z_x - z_y * z_y + c_x;
-						z_y = 2 * tempx * z_y + c_y; z_y = z_y > 0 ? z_y : -z_y;
-						iter++;
+					reached = iter;
+					textureView[idnx] = Color((int)is_HSV, reached, has_red, has_green, has_blue, alphaSrc == 0 ? 255 : alphaSrc == 1 ? reached : alphaVal);
+				}
+				else if (fractalIndex == 5 || fractalIndex == 6) {
+					switch (fractalIndex)
+					{
+					case 5: 
+						c_x = x;  c_y = y; z_x = alpha; z_y = beta; break;
+					case 6:
+						c_x = x; c_y = -y; z_x = x; z_y = -y; break;
 					}
-					return iter;
-				};
-				auto BurningShip = [=](double x, double y) restrict(amp) {
-					int iter = 0;
-					double c_x = x;
-					double c_y = y;
-					double z_x = x;
-					double z_y = y;
 					while (z_x * z_x + z_y * z_y < lim && iter < max) {
 						double temp_x = z_x;
 						z_x = z_x * z_x - z_y * z_y - c_x;
 						z_y = 2 * abs(temp_x * z_y) - c_y;
 						iter++;
 					}
-					return iter;
-				};
-				auto MultiJulia = [=](double x, double y, int n) restrict(amp) {
-					double R = 1;
-					while (power(R, n) - R <= sqrt(x * x + y * y)) R++;
-					double c_x = x;
-					double c_y = y;
-					double z_x = alpha;
-					double z_y = beta;
-					int iter = 0;
-					while (z_x * z_x + z_y * z_y < R * R  &&  iter < max)
-					{
-						double xtmp = power((z_x * z_x + z_y * z_y), (n / 2)) * cos(n * atan2(z_y, z_x)) + c_x;
-						z_y = power((z_x * z_x + z_y * z_y), (n / 2)) * sin(n * atan2(z_y, z_x)) + c_y;
-						z_x = xtmp;
-
-						iter++;
-					}
-					return iter;
-				};
-				int reached = 0;
-				switch (fractalIndex) {
-				case 0:
-					reached = MandelBrot(x, y);
-					break;
-				case 1:
-					reached = JuliaSet(x, y);
-					break;
-				case 2:
-					reached = duckAlgo(x, y);
-					break;
-				case 3:
-					reached = MultiJulia(x, y, multiJulia);
-					break;
-				case 4:
-					reached = BurningShip(x, -y);
-					break;
-				default:
-					reached = 0;
+					reached = iter;
+					textureView[idnx] = Color((int)is_HSV, reached, has_red, has_green, has_blue, alphaSrc == 0 ? 255 : alphaSrc == 1 ? reached : alphaVal);
 				}
-				int b = (reached % 16 * 16) ;
-				int g = (reached % 8 * 32) ;
-				int r = (reached % 4 * 64 ) ;
-				int a = 255 & 0x0ff;
-				textureView[idnx] = ((a & 0x0ff) << 24) | ((r & 0x0ff) << 16) | ((g & 0x0ff) << 8) | (b & 0x0ff);
 		});
 	textureView.synchronize();
 	for (int i = 0; i < len*4; i+=4) {
@@ -226,7 +242,7 @@ void mandelbrot::MainPage::translate(double dx, double dy)
 
 void mandelbrot::MainPage::Zoom(bool in)
 {
-	Point zoom = Point(disP.X / 50, disP.Y / 50);
+	Point zoom = Point(disP.X / 200, disP.Y / 200);
 	auto BinaryPoint = [](Point p1, Point p2, String^ s) {
 		if (s == "Add")
 			return Point(p2.X + p1.X, p2.Y + p1.Y);
@@ -272,32 +288,12 @@ void mandelbrot::MainPage::Grid_SizeChanged(Platform::Object^ sender, Windows::U
 }
 
 
-void mandelbrot::MainPage::Resolution_ValueChanged(Platform::Object^ sender, Windows::UI::Xaml::Controls::Primitives::RangeBaseValueChangedEventArgs^ e)
-{
-	resP = Windows::Foundation::Point((int)dynamic_cast<Slider^>(sender)->Value, (int)dynamic_cast<Slider^>(sender)->Value);
-}
-
-
 void mandelbrot::MainPage::MandelBrot_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e)
 {
 	this->alphaV->Value = 0; this->betaV->Value = 0;
 	this->FractalChosen = 0;
 	updateConcurrent();
 }
-
-void mandelbrot::MainPage::MultiSets_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e)
-{
-	this->FractalChosen = 3;
-	updateConcurrent();
-}
-
-void mandelbrot::MainPage::BurningShip_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e)
-{
-	this->alphaV->Value = 0;this->beta = 0;
-	this->FractalChosen = 2;
-	updateConcurrent();
-}
-
 
 void mandelbrot::MainPage::JuliaSet_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e)
 {
@@ -306,30 +302,37 @@ void mandelbrot::MainPage::JuliaSet_Click(Platform::Object^ sender, Windows::UI:
 	updateConcurrent();
 }
 
-
-void mandelbrot::MainPage::Animate_Toggled(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e)
-{
-	if (dynamic_cast<ToggleSwitch^>(sender)->IsOn) {
-		this->Animator->Start();
-	}
-	else {
-		this->Animator->Stop();
-	}
-}
-
-
 void mandelbrot::MainPage::OnTick(Platform::Object^ sender, Platform::Object^ args)
 {
-	if (this->FractalChosen % 2 == 0) {
+	if (this->Animate->IsOn) {
 		Zoom(false);
 	}
-	else if (this->FractalChosen % 2 == 1) {
-		this->alphaV->Value += isReversing?-0.01:0.01;
+	else {
+		if (this->rndAlpha->IsChecked->Value) {
+			this->alphaV->Value += isReversingA ? -0.01 : 0.01;
+		}
+		if (this->rndBeta->IsChecked->Value) {
+			this->betaV->Value += isReversingB ? -0.01 : 0.01;
+			
+		}
+		if (!this->rndBeta->IsChecked->Value && !this->rndAlpha->IsChecked->Value) {
+			int mode = rand() % 2;
+			this->betaV->Value += mode * (isReversingB ? -0.01 : 0.01);
+			this->alphaV->Value += mode * (isReversingA ? -0.01 : 0.01);
+		}
+		
+		if (this->betaV->Value >= 1) {
+			this->isReversingB = true;
+		}
+		else if (this->betaV->Value <= -1) {
+			this->isReversingB = false;
+		}
+		
 		if (this->alphaV->Value >= 1) {
-			this->isReversing = true;
+			this->isReversingA = true;
 		}
 		else if (this->alphaV->Value <= -1) {
-			this->isReversing = false;
+			this->isReversingA = false;
 		}
 	}
 	updateConcurrent();
@@ -355,8 +358,155 @@ void mandelbrot::MainPage::Alpha_ValueChanged(Platform::Object^ sender, Windows:
 	this->beta = dynamic_cast<Slider^>(sender)->Value;
 }
 
-void mandelbrot::MainPage::Attractors_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e)
+
+void mandelbrot::MainPage::Multilia_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e)
 {
+	this->alphaV->Value = 0.564; this->betaV->Value = 0;
 	this->FractalChosen = 4;
+	updateConcurrent();
+}
+
+
+void mandelbrot::MainPage::Multibrot_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e)
+{
+	this->alphaV->Value = 0; this->betaV->Value = 0;
+	this->FractalChosen = 3;
+	updateConcurrent();
+}
+
+
+void mandelbrot::MainPage::BurningShip_Click_1(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e)
+{
+	this->FractalChosen = 6;
+	updateConcurrent();
+}
+
+
+void mandelbrot::MainPage::DuckFractals_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e)
+{
+	this->alphaV->Value = -0.1; this->betaV->Value = 0.35;
+	this->FractalChosen = 5;
+	updateConcurrent();
+}
+
+
+void mandelbrot::MainPage::reset_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e)
+{
+	this->play->IsEnabled = true;
+	this->pause->IsEnabled = false;
+	minP = Windows::Foundation::Point(-2, -2);
+	maxP = Windows::Foundation::Point(2, 2);
+	this->alphaV->Value = -0.1;
+	this->betaV->Value = 0.1;
+	this->Animator->Stop();
+	this->isAnimating = false;
+	updateConcurrent();
+}
+
+
+void mandelbrot::MainPage::ResolutionX_ValueChanged(Platform::Object^ sender, Windows::UI::Xaml::Controls::Primitives::RangeBaseValueChangedEventArgs^ e)
+{
+	resP = Windows::Foundation::Point((int)dynamic_cast<Slider^>(sender)->Value, resP.Y);
+}
+
+
+void mandelbrot::MainPage::ResolutionY_ValueChanged(Platform::Object^ sender, Windows::UI::Xaml::Controls::Primitives::RangeBaseValueChangedEventArgs^ e)
+{
+	resP = Windows::Foundation::Point(resP.X, (int)dynamic_cast<Slider^>(sender)->Value);
+}
+
+
+void mandelbrot::MainPage::ratio_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e)
+{
+	if (dynamic_cast<CheckBox^>(sender)->IsChecked->Value) {
+		this->Resolution->Visibility = Windows::UI::Xaml::Visibility::Visible;
+		this->XYContainer->Visibility = Windows::UI::Xaml::Visibility::Collapsed;
+	}
+	else {
+		this->Resolution->Visibility = Windows::UI::Xaml::Visibility::Collapsed;
+		this->XYContainer->Visibility = Windows::UI::Xaml::Visibility::Visible;
+	}
+}
+
+void mandelbrot::MainPage::Resolution_ValueChanged_1(Platform::Object^ sender, Windows::UI::Xaml::Controls::Primitives::RangeBaseValueChangedEventArgs^ e)
+{
+	double ratioX = (double)resP.X / resP.Y; int wid = (int)(dynamic_cast<Slider^>(sender)->Value* ratioX);
+	double ratioY = (double)resP.Y / resP.X; int hei = (int)(dynamic_cast<Slider^>(sender)->Value* ratioY);
+	if (this->ResolutionX != nullptr && this->ResolutionY != nullptr)
+	{ this->ResolutionX->Value = wid; this->ResolutionY->Value = hei;}
+}
+
+
+void mandelbrot::MainPage::pause_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e)
+{
+	this->play->IsEnabled = true;
+	this->pause->IsEnabled = false;
+	if (this->isAnimating) {
+		this->Animator->Stop();
+		this->isAnimating = false;
+	}
+}
+
+
+void mandelbrot::MainPage::Zoom_ValueChanged(Platform::Object^ sender, Windows::UI::Xaml::Controls::Primitives::RangeBaseValueChangedEventArgs^ e)
+{
+	Slider^ holder = dynamic_cast<Slider^>(sender);
+	int middle = (holder->Maximum + holder->Minimum) / 2;
+	if (holder->Value > middle) {
+		Zoom(true);
+		updateConcurrent();
+	}
+	else if (holder->Value < middle) {
+		Zoom(false);
+		updateConcurrent();
+	}
+	holder->Value = middle;
+}
+
+
+void mandelbrot::MainPage::alphaRgb_ValueChanged(Platform::Object^ sender, Windows::UI::Xaml::Controls::Primitives::RangeBaseValueChangedEventArgs^ e)
+{
+	Slider^ holder = dynamic_cast<Slider^>(sender);
+	if (holder->Value == 0) {
+		holder->Header = "Alpha From : fixed Value 255";
+	}
+	else if (holder->Value == 1) {
+		holder->Header = "Alpha From : Value Iterations";
+	}
+	else if (holder->Value == -1) {
+		holder->Header = "Alpha From : Random Value";
+	}
+}
+
+
+void mandelbrot::MainPage::rotator_ValueChanged(Platform::Object^ sender, Windows::UI::Xaml::Controls::Primitives::RangeBaseValueChangedEventArgs^ e)
+{
+}
+
+
+void mandelbrot::MainPage::FlipVertical_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e)
+{
+	this->horizFlip = !this->horizFlip;
+	updateConcurrent();
+}
+
+
+void mandelbrot::MainPage::FlipHorizontal_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e)
+{
+	this->vertFlip = !vertFlip;
+	updateConcurrent();
+}
+
+
+void mandelbrot::MainPage::RotateRight_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e)
+{
+	this->rotation = (++this->rotation) % 4;
+	updateConcurrent();
+}
+
+
+void mandelbrot::MainPage::RotateLeft_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e)
+{
+	this->rotation = (--this->rotation) < 0 ? 3 : this->rotation;
 	updateConcurrent();
 }

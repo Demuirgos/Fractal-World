@@ -9,7 +9,8 @@
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
     <Grid Background="#FF402010"  ManipulationMode="All" ManipulationDelta="Board_ManipulationDelta" SizeChanged="Grid_SizeChanged">
-        <Image x:Name="Board"  Width="500" Height="500" Stretch="UniformToFill" PointerWheelChanged="Board_PointerWheelChanged"/>
+        <Image x:Name="Board"  Width="500" Height="500" Stretch="UniformToFill" PointerWheelChanged="Board_PointerWheelChanged" RenderTransformOrigin="0.5,0.5">
+        </Image>
         <MenuBar VerticalAlignment="Top">
             <MenuBarItem Title="Fractals :" >
                 <MenuBarItem.Background>
@@ -17,36 +18,109 @@
                 </MenuBarItem.Background>
                 <MenuFlyoutItem x:Name="MandelBrot" Text="MandelBrot" Click="MandelBrot_Click"/>
                 <MenuFlyoutItem x:Name="JuliaSet" Text="Julia" Click="JuliaSet_Click"/>
-                <MenuFlyoutItem x:Name="DuckFractals" Text="BurningShip" Click="BurningShip_Click"/>
-                <MenuFlyoutItem x:Name="MultiSets" Text="MultiSets" Click="MultiSets_Click"/>
-                <MenuFlyoutItem x:Name="BurningShip" Text="Attractors" Click="Attractors_Click"/>
+                <MenuFlyoutItem x:Name="Multibrot" Text="Multibrot" Click="Multibrot_Click"/>
+                <MenuFlyoutItem x:Name="Multilia" Text="Multilia" Click="Multilia_Click"/>
+                <MenuFlyoutItem x:Name="DuckFractals" Text="DuckFractals" Click="DuckFractals_Click"/>
+                <MenuFlyoutItem x:Name="BurningShip" Text="BurningShip" Click="BurningShip_Click_1"/>
             </MenuBarItem>
         </MenuBar>
         <AppBar VerticalAlignment="Bottom">
-            <StackPanel Orientation="Horizontal">
-                <AppBarButton x:Name="play" Label="Play" Icon="Play" Click="play_Click"/>
-                <AppBarElementContainer>
-                    <Slider x:Name="MaxIter" Value="256" Margin="5,0,0,0" StepFrequency="8" TickFrequency="8" Header="maxIteration" Width="100" Minimum="16" Maximum="1024" ValueChanged="MaxIter_ValueChanged"></Slider>
-                </AppBarElementContainer>
-                <AppBarElementContainer>
-                    <Slider x:Name="DivergenceLimit" Value="2" Margin="5,0,0,0" Header="DivergeanceOffset" Width="150" Minimum="0.01" Maximum="1000" TickFrequency="1" StepFrequency="0.01" ValueChanged="DivergenceLimit_ValueChanged"></Slider>
-                </AppBarElementContainer>
-                <AppBarElementContainer>
-                    <Slider x:Name="Resolution" Value="2" Margin="5,0,0,0" Header="Resolution(X=Y)" Width="150" Minimum="500" Maximum="1270" TickFrequency="1" StepFrequency="0.01" ValueChanged="Resolution_ValueChanged"></Slider>
-                </AppBarElementContainer>
-                <AppBarElementContainer>
-                    <ToggleSwitch x:Name="Animate" Margin="5,0,0,0" Header="Animate :" Toggled="Animate_Toggled"/>
-                </AppBarElementContainer>
-                <AppBarElementContainer>
-                    <Slider x:Name="alphaV" Value="0" Margin="5,0,0,0" Header="Z_init_X" Width="150" Minimum="-10" Maximum="10" TickFrequency="0.001" StepFrequency="0.001" ValueChanged="Alpha_ValueChanged"></Slider>
-                </AppBarElementContainer>
-                <AppBarElementContainer>
-                    <Slider x:Name="betaV" Value="0" Margin="5,0,0,0" Header="Z_init_Y" Width="150" Minimum="-10" Maximum="10" TickFrequency="0.001" StepFrequency="0.001" ValueChanged="Beta_ValueChanged"></Slider>
-                </AppBarElementContainer>
-                <AppBarElementContainer>
-                    <Slider x:Name="Nthpower" Value="5" Margin="5,0,0,0" Header="MultijuliaPower" Width="150" Minimum="2" Maximum="23" TickFrequency="1" StepFrequency="1" ValueChanged="Nthpower_ValueChanged"></Slider>
-                </AppBarElementContainer>
-            </StackPanel>
+            <ScrollViewer>
+                <StackPanel Orientation="Horizontal">
+                    <AppBarElementContainer>
+                        <StackPanel>
+                            <TextBlock Text="Animate"/>
+                            <GridView>
+                                <AppBarButton x:Name="play" Label="Play" Icon="Play" Click="play_Click"/>
+                                <AppBarButton x:Name="reset" Label="Reset" Icon="Undo" Click="reset_Click"/>
+                                <AppBarButton x:Name="pause" Label="Pause" Icon="Pause" Click="pause_Click"/>
+                            </GridView>
+                            <ToggleSwitch x:Name="Animate" Margin="5,0,0,0" Header="Animation Mode:" OnContent="Zoom" OffContent="Randomize"/>
+                            <GridView Margin="10,0,0,0">
+                                <CheckBox x:Name="rndAlpha" IsChecked="True" Content="OnAlpha"/>
+                                <CheckBox x:Name="rndBeta"  IsChecked="False" Content="OnBeta"/>
+                            </GridView>
+                        </StackPanel>
+                    </AppBarElementContainer>
+                    <AppBarElementContainer>
+                        <StackPanel Width="200">
+                            <TextBlock Text="Presets"></TextBlock>
+                            <ScrollViewer  Height="250">
+                                <StackPanel>
+                                    <Slider x:Name="MaxIter" Value="256" Margin="5,0,0,0" StepFrequency="8" TickFrequency="8" Header="maxIteration" Width="150" Minimum="16" Maximum="1024" ValueChanged="MaxIter_ValueChanged"></Slider>
+                                    <Slider x:Name="DivergenceLimit" Value="2" Margin="5,0,0,0" Header="DivergeanceOffset" Width="150" Minimum="0.01" Maximum="1000" TickFrequency="1" StepFrequency="0.01" ValueChanged="DivergenceLimit_ValueChanged"></Slider>
+                                    <Slider x:Name="ZoomSlider" Value="0" Margin="5,0,0,0" Header="Zoom" Width="150" Minimum="-50" Maximum="50" TickFrequency="1" StepFrequency="1" ValueChanged="Zoom_ValueChanged"></Slider>
+                                    <Slider x:Name="rotator" Visibility="Collapsed" Value="0" Margin="5,0,0,0" Header="rotator" Width="150" Minimum="0" Maximum="359" TickFrequency="1" StepFrequency="1" ValueChanged="rotator_ValueChanged"/>
+                                    <Slider x:Name="alphaV" Value="0" Margin="5,0,0,0" Header="Z_init_X" Width="150" Minimum="-10" Maximum="10" TickFrequency="0.001" StepFrequency="0.001" ValueChanged="Alpha_ValueChanged"></Slider>
+                                    <Slider x:Name="betaV" Value="0" Margin="5,0,0,0" Header="Z_init_Y" Width="150" Minimum="-10" Maximum="10" TickFrequency="0.001" StepFrequency="0.001" ValueChanged="Beta_ValueChanged"></Slider>
+                                    <Slider x:Name="Nthpower" Value="5" Margin="5,0,0,0" Header="MultijuliaPower" Width="150" Minimum="2" Maximum="23" TickFrequency="1" StepFrequency="1" ValueChanged="Nthpower_ValueChanged"></Slider>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </StackPanel>
+                    </AppBarElementContainer>
+                    <AppBarElementContainer>
+                        <StackPanel  Width="350">
+                            <TextBlock Text="Resolution"></TextBlock>
+                            <CheckBox x:Name="ratio" Content="KeepRatio" Click="ratio_Click" IsChecked="True"/>
+                            <Slider x:Name="Resolution" Value="2" Margin="5,0,0,0" Header="Resolution" Width="300" Minimum="500" Maximum="1270" TickFrequency="1" StepFrequency="1" ValueChanged="Resolution_ValueChanged_1"></Slider>
+                            <GridView x:Name="XYContainer" Visibility="Collapsed">
+                                <Slider x:Name="ResolutionX" Value="2" Margin="5,0,0,0" Header="Width" Width="150" Minimum="500" Maximum="1270" TickFrequency="1" StepFrequency="1" ValueChanged="ResolutionX_ValueChanged"></Slider>
+                                <Slider x:Name="ResolutionY" Value="2" Margin="5,0,0,0" Header="Height" Width="150" Minimum="500" Maximum="1270" TickFrequency="1" StepFrequency="1" ValueChanged="ResolutionY_ValueChanged"></Slider>
+                            </GridView>
+                        </StackPanel>
+                    </AppBarElementContainer>
+                    <AppBarElementContainer>
+                        <ScrollViewer Height="200">
+                            <StackPanel  Width="300">
+                                <TextBlock Text="Coloring"></TextBlock>
+                                <GridView Header="Mode">
+                                    <RadioButton x:Name="HSLM" Content="HSL" IsChecked="False"></RadioButton>
+                                    <RadioButton x:Name="RGBM" Content="RGB" IsChecked="True"></RadioButton>
+                                </GridView>
+                                <GridView Header="Colors">
+                                    <CheckBox x:Name="Red" Content="Red" IsChecked="True"></CheckBox>
+                                    <CheckBox x:Name="Green" Content="Green" IsChecked="True"></CheckBox>
+                                    <CheckBox x:Name="Blue" Content="Blue" IsChecked="True"></CheckBox>
+                                </GridView>
+                                <Slider x:Name="alphaRgb" Header="Alpha From : fixed Value 255" Minimum="-1" Maximum="1" Value="0" StepFrequency="1" TickFrequency="1" ValueChanged="alphaRgb_ValueChanged"/>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </AppBarElementContainer>
+                    <AppBarElementContainer>
+                        <StackPanel>
+                            <TextBlock Text="Image Presets :"></TextBlock>
+                            <GridView Width="250" Header="Rotations" Margin="10">
+                                <AppBarButton x:Name="RotateLeft" Label="Rotate Left" Width="100" Click="RotateLeft_Click">
+                                    <AppBarButton.Icon>
+                                        <SymbolIcon Symbol="Orientation"/>
+                                    </AppBarButton.Icon>
+                                </AppBarButton>
+                                <AppBarButton x:Name="RotateRight" Label="Rotate Right"  Width="100" Click="RotateRight_Click">
+                                    <AppBarButton.Icon >
+                                        <SymbolIcon Symbol="Orientation" RenderTransformOrigin="0.5,0.5">
+                                            <SymbolIcon.RenderTransform>
+                                                <CompositeTransform Rotation="0" ScaleY="1" ScaleX="-1"/>
+                                            </SymbolIcon.RenderTransform>
+                                        </SymbolIcon>
+                                    </AppBarButton.Icon>
+                                </AppBarButton>
+                            </GridView>
+                            <GridView Header="FlipFlaps" Margin="10">
+                                <AppBarButton x:Name="FlipHorizontal" Label="Flip Horizontal" Width="100" Icon="Sort" Click="FlipHorizontal_Click"/>
+                                <AppBarButton x:Name="FlipVertical" Label="Flip Horizontal" Width="100" Click="FlipVertical_Click">
+                                    <AppBarButton.Icon>
+                                        <SymbolIcon Symbol="Sort" RenderTransformOrigin="0.5,0.5">
+                                            <SymbolIcon.RenderTransform>
+                                                <CompositeTransform Rotation="90"/>
+                                            </SymbolIcon.RenderTransform>
+                                        </SymbolIcon>
+                                    </AppBarButton.Icon>
+                                </AppBarButton>
+                            </GridView>
+                        </StackPanel>
+                    </AppBarElementContainer>
+                </StackPanel>
+            </ScrollViewer>
         </AppBar>
     </Grid>
 </Page>

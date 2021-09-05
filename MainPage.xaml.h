@@ -6,7 +6,6 @@
 #pragma once
 
 #include "MainPage.g.h"
-
 namespace mandelbrot
 {
 	/// <summary>
@@ -23,7 +22,7 @@ namespace mandelbrot
 			int get() { return this->fractalChosen; }
 			void set(int v) { 
 				this->fractalChosen = v;
-				if(v != 3 ){
+				if(v !=3 && v != 4 ){
 					this->Nthpower->Visibility = Windows::UI::Xaml::Visibility::Collapsed;
 				} else {
 					this->Nthpower->Visibility = Windows::UI::Xaml::Visibility::Visible;
@@ -49,10 +48,14 @@ namespace mandelbrot
 		void OnTick(Platform::Object^ sender, Platform::Object^ args);
 		void update();*/
 		void updateConcurrent();
-
+		bool isAnimating = false;
 		//julia specific csts
-		bool isReversing = false;
-
+		bool isReversingA = false;
+		bool isReversingB = false;
+		//rotation
+		int rotation = 0;
+		bool horizFlip = false;
+		bool vertFlip = false;
 		//Mandel specific csts
 
 
@@ -64,16 +67,28 @@ namespace mandelbrot
 		void MaxIter_ValueChanged(Platform::Object^ sender, Windows::UI::Xaml::Controls::Primitives::RangeBaseValueChangedEventArgs^ e);
 		void DivergenceLimit_ValueChanged(Platform::Object^ sender, Windows::UI::Xaml::Controls::Primitives::RangeBaseValueChangedEventArgs^ e);
 		void Grid_SizeChanged(Platform::Object^ sender, Windows::UI::Xaml::SizeChangedEventArgs^ e);
-		void Resolution_ValueChanged(Platform::Object^ sender, Windows::UI::Xaml::Controls::Primitives::RangeBaseValueChangedEventArgs^ e);
 		void MandelBrot_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e);
-		void MultiSets_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e);
-		void BurningShip_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e);
 		void JuliaSet_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e);
-		void Animate_Toggled(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e);
 		void OnTick(Platform::Object^ sender, Platform::Object^ args);
 		void Nthpower_ValueChanged(Platform::Object^ sender, Windows::UI::Xaml::Controls::Primitives::RangeBaseValueChangedEventArgs^ e);
 		void Alpha_ValueChanged(Platform::Object^ sender, Windows::UI::Xaml::Controls::Primitives::RangeBaseValueChangedEventArgs^ e);
 		void Beta_ValueChanged(Platform::Object^ sender, Windows::UI::Xaml::Controls::Primitives::RangeBaseValueChangedEventArgs^ e);
-		void Attractors_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e);
+		void Multilia_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e);
+		void Multibrot_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e);
+		void BurningShip_Click_1(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e);
+		void DuckFractals_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e);
+		void reset_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e);
+		void ResolutionX_ValueChanged(Platform::Object^ sender, Windows::UI::Xaml::Controls::Primitives::RangeBaseValueChangedEventArgs^ e);
+		void ResolutionY_ValueChanged(Platform::Object^ sender, Windows::UI::Xaml::Controls::Primitives::RangeBaseValueChangedEventArgs^ e);
+		void ratio_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e);
+		void Resolution_ValueChanged_1(Platform::Object^ sender, Windows::UI::Xaml::Controls::Primitives::RangeBaseValueChangedEventArgs^ e);
+		void pause_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e);
+		void Zoom_ValueChanged(Platform::Object^ sender, Windows::UI::Xaml::Controls::Primitives::RangeBaseValueChangedEventArgs^ e);
+		void alphaRgb_ValueChanged(Platform::Object^ sender, Windows::UI::Xaml::Controls::Primitives::RangeBaseValueChangedEventArgs^ e);
+		void rotator_ValueChanged(Platform::Object^ sender, Windows::UI::Xaml::Controls::Primitives::RangeBaseValueChangedEventArgs^ e);
+		void FlipVertical_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e);
+		void FlipHorizontal_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e);
+		void RotateRight_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e);
+		void RotateLeft_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e);
 	};
 }

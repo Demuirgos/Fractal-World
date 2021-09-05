@@ -167,7 +167,9 @@
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="FractalAlgorithms.h" />
+    <ClInclude Include="inc\amp_rand_collection.h" />
+    <ClInclude Include="inc\amp_tinymt_rng.h" />
+    <ClInclude Include="inc\xxamp_tinymt_precalc_dc.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="App.xaml.h">
       <DependentUpon>App.xaml</DependentUpon>
