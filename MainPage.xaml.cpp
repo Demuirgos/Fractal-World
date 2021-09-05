@@ -9,7 +9,6 @@
 #include "MainPage.xaml.h"
 #include <robuffer.h>
 #include <amp_math.h>
-#include "inc/amp_tinymt_rng.h"
 
 #define TO_XY(idnx, minX, minY, disX, disY, height, width) \
 		double y = ((idnx / width) / (height - 1)) * disY + minY, x = ((idnx % (int)width) / (width - 1)) * disX + minX;
