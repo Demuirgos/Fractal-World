@@ -9,12 +9,14 @@
 #include "MainPage.xaml.h"
 #include <robuffer.h>
 #include <amp_math.h>
+#include "inc/amp_tinymt_rng.h"
 
 #define TO_XY(idnx, minX, minY, disX, disY, height, width) \
 		double y = ((idnx / width) / (height - 1)) * disY + minY, x = ((idnx % (int)width) / (width - 1)) * disX + minX;
 #define FROM_XY(x, y, minX, minY, disX, disY, height, width) \
 		int idx = (int)(((y - minY) * (height - 1) / disY * width) + ((x - minX) * (width - 1) / disX));
-#define ROTATE_BY(n) for(int i =0; i < n; i++) { double t = x; x = -y; y = t; }
+#define ROTATE_BY__90_N(n) for(int i =0; i < n; i++) { double t = x; x = -y; y = t; }
+#define ROTATE_BY_ANGLE(a) double t = cos(a)*x -sin(a)*y; y = sin(a)*x + cos(a)*y; x = t; 
 #define FLIP(H, V) x = H ? -x : x; y = V ? -y : y; 
 
 using namespace mandelbrot;
@@ -112,19 +114,29 @@ void mandelbrot::MainPage::updateConcurrent()
 	bool has_red = this->Red->IsChecked->Value,
 		has_green = this->Green->IsChecked->Value,
 		has_blue = this->Blue->IsChecked->Value,
-		is_HSV = this->HSLM->IsChecked->Value;
-	int alphaSrc = this->alphaRgb->Value; int alphaVal = rand() % 255;
-	int rotations = this->rotation; bool FlipH = this->horizFlip;
-									bool FlipV = this->vertFlip;
+		is_HSV = this->HSLM->IsChecked->Value,
+		isSmooth = this->smoother->IsOn ? 1 : 0;
+	int alphaSrc = this->alphaRgb->Value, alphaVal = rand() % 255, rotations = this->angle; 
+	bool FlipV = this->vertFlip; bool FlipH = this->horizFlip;
 	concurrency::parallel_for_each(textureView.extent, [=](index<1> idx) restrict(amp)
 		{
 				int idnx = idx[0]; 
 				TO_XY(idnx, minX, minY, disX, disY, height, width);
-				auto Color = [](int mode,int reached, bool has_r, bool has_g, bool has_b, int is_a) {
+				auto Color = [](int mode,bool isContinuous, int reached, bool has_r, bool has_g, bool has_b, int is_a, double x_n, double y_n, double lim) {
 					if (mode == 0) {
-						int b = ((has_b ? reached : 0) % 16 * 16), g = ((has_g ? reached : 0) % 8 * 32);
-						int r = ((has_r ? reached : 0) %  4 * 64), a = is_a & 0x0ff;
-						return ((a & 0x0ff) << 24) | ((r & 0x0ff) << 16) | ((g & 0x0ff) << 8) | (b & 0x0ff);
+						if (!isContinuous) {
+							int b = ((has_b ? reached : 0) % 16 * 16), g = ((has_g ? reached : 0) % 8 * 32);
+							int r = ((has_r ? reached : 0) % 4 * 64), a = is_a & 0x0ff;
+							return ((a & 0x0ff) << 24) | ((r & 0x0ff) << 16) | ((g & 0x0ff) << 8) | (b & 0x0ff);
+						}
+						else {
+							int ColoringIndex = reached - log((x_n * x_n + y_n * y_n)) / log(lim);
+							int b = (has_b ? sin(0.010 * ColoringIndex + 1) * 230 + 25: 0)
+							  , g = (has_g ? sin(0.013 * ColoringIndex + 2) * 230 + 25: 0)
+							  , r = (has_r ? sin(0.016 * ColoringIndex + 4) * 230 + 25: 0)
+						      , a = is_a & 0x0ff;
+							return ((a & 0x0ff) << 24) | ((r & 0x0ff) << 16) | ((g & 0x0ff) << 8) | (b & 0x0ff);
+						}
 					} else {
 						int H = (reached % 16 * 16) % 360, S = (reached % 8 * 32) % 100, V = (reached % 4 * 64) % 100;
 						float s = S / 100;
@@ -162,7 +174,7 @@ void mandelbrot::MainPage::updateConcurrent()
 				};
 				double c_x, c_y, z_x, z_y;
 				int iter = 0, reached = 0;
-				ROTATE_BY(rotations);
+				ROTATE_BY_ANGLE(rotations * 3.141529 / 180);
 				FLIP(FlipH, FlipV)
 				if (fractalIndex == 0 || fractalIndex == 1) {
 					iter = 0;
@@ -179,7 +191,7 @@ void mandelbrot::MainPage::updateConcurrent()
 						iter++;
 					}
 					reached = iter;
-					textureView[idnx] = Color((int)is_HSV,reached, has_red, has_green, has_blue, alphaSrc == 0 ? 255 : alphaSrc == 1 ? reached : alphaVal);
+					textureView[idnx] = Color((int)is_HSV, isSmooth, reached, has_red, has_green, has_blue, alphaSrc == 0 ? 255 : alphaSrc == 1 ? reached : alphaVal, z_x, z_y, lim);
 				}
 				else if (fractalIndex == 3 || fractalIndex == 4) {
 					double R = 1; iter = 0;
@@ -200,7 +212,7 @@ void mandelbrot::MainPage::updateConcurrent()
 						iter++;
 					}
 					reached = iter;
-					textureView[idnx] = Color((int)is_HSV, reached, has_red, has_green, has_blue, alphaSrc == 0 ? 255 : alphaSrc == 1 ? reached : alphaVal);
+					textureView[idnx] = Color((int)is_HSV, isSmooth, reached, has_red, has_green, has_blue, alphaSrc == 0 ? 255 : alphaSrc == 1 ? reached : alphaVal, z_x, z_y, lim);
 				}
 				else if (fractalIndex == 5 || fractalIndex == 6) {
 					switch (fractalIndex)
@@ -217,7 +229,29 @@ void mandelbrot::MainPage::updateConcurrent()
 						iter++;
 					}
 					reached = iter;
-					textureView[idnx] = Color((int)is_HSV, reached, has_red, has_green, has_blue, alphaSrc == 0 ? 255 : alphaSrc == 1 ? reached : alphaVal);
+					textureView[idnx] = Color((int)is_HSV, isSmooth, reached, has_red, has_green, has_blue, alphaSrc == 0 ? 255 : alphaSrc == 1 ? reached : alphaVal, z_x, z_y, lim);
+				}
+				else if (fractalIndex > 6 && fractalIndex < 12) {
+					c_x = x;  c_y = y; z_x = alpha; z_y = beta; 
+					switch (fractalIndex)
+					{
+					case 7:
+					case 8:
+						c_x = x;  c_y = y; z_x = alpha; z_y = beta; break;
+					case 9:
+						c_x = x; c_y = -y; z_x = x; z_y = -y; break;
+					case 10:
+						c_x = x; c_y = -y; z_x = x; z_y = -y; break;
+					case 11:
+						c_x = x; c_y = -y; z_x = x; z_y = -y; break;
+					}
+					while (z_x * z_x + z_y * z_y < lim && iter < max) {
+						double temp_x = z_x;
+						z_x = z_x * z_x - z_y * z_y - c_x;
+						z_y = 2 * abs(temp_x * z_y) - c_y;
+						iter++;
+					}
+					reached = iter;
 				}
 		});
 	textureView.synchronize();
@@ -283,6 +317,7 @@ void mandelbrot::MainPage::Grid_SizeChanged(Platform::Object^ sender, Windows::U
 	double oldWidth =  this->Board->Width;
 	this->Board->Height = this->ActualHeight;
 	this->Board->Width = this->ActualWidth;
+	this->BottomBar->Width = this->ActualWidth - 50;
 	updateConcurrent();
 }
 
@@ -480,6 +515,9 @@ void mandelbrot::MainPage::alphaRgb_ValueChanged(Platform::Object^ sender, Windo
 
 void mandelbrot::MainPage::rotator_ValueChanged(Platform::Object^ sender, Windows::UI::Xaml::Controls::Primitives::RangeBaseValueChangedEventArgs^ e)
 {
+	this->angle = (int)(dynamic_cast<Slider^>(sender)->Value);
+	this->rotation = this->angle % 90;
+	updateConcurrent();
 }
 
 
@@ -499,13 +537,43 @@ void mandelbrot::MainPage::FlipHorizontal_Click(Platform::Object^ sender, Window
 
 void mandelbrot::MainPage::RotateRight_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e)
 {
-	this->rotation = (++this->rotation) % 4;
+	this->DiscreteRotation = (++this->rotation) % 4;
 	updateConcurrent();
 }
 
 
 void mandelbrot::MainPage::RotateLeft_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e)
 {
-	this->rotation = (--this->rotation) < 0 ? 3 : this->rotation;
+	this->DiscreteRotation = (--this->rotation) < 0 ? 3 : this->rotation;
 	updateConcurrent();
+}
+
+
+void mandelbrot::MainPage::NewtonFrac_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e)
+{
+
+}
+
+
+void mandelbrot::MainPage::WobblyFrac_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e)
+{
+
+}
+
+
+void mandelbrot::MainPage::AtomicFrac_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e)
+{
+
+}
+
+
+void mandelbrot::MainPage::CellularFrac_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e)
+{
+
+}
+
+
+void mandelbrot::MainPage::CustomFractal_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e)
+{
+
 }

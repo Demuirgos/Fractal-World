@@ -18,15 +18,25 @@ namespace mandelbrot
 		property Windows::Foundation::Point disP {
 			Windows::Foundation::Point get() { return Windows::Foundation::Point(maxP.X - minP.X, maxP.Y - minP.Y); }
 		}
+
 		property int FractalChosen {
 			int get() { return this->fractalChosen; }
-			void set(int v) { 
+			void set(int v) {
 				this->fractalChosen = v;
-				if(v !=3 && v != 4 ){
+				if (v != 3 && v != 4) {
 					this->Nthpower->Visibility = Windows::UI::Xaml::Visibility::Collapsed;
-				} else {
+				}
+				else {
 					this->Nthpower->Visibility = Windows::UI::Xaml::Visibility::Visible;
 				}
+			}
+		}
+
+		property int DiscreteRotation {
+			int get() { return this->rotation; }
+			void set(int v) {
+				this->angle = 90 * v;
+				this->rotation = v;
 			}
 		}
 	private:
@@ -53,6 +63,7 @@ namespace mandelbrot
 		bool isReversingA = false;
 		bool isReversingB = false;
 		//rotation
+		int angle = 0;
 		int rotation = 0;
 		bool horizFlip = false;
 		bool vertFlip = false;
@@ -90,5 +101,10 @@ namespace mandelbrot
 		void FlipHorizontal_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e);
 		void RotateRight_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e);
 		void RotateLeft_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e);
+		void NewtonFrac_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e);
+		void WobblyFrac_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e);
+		void AtomicFrac_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e);
+		void CellularFrac_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e);
+		void CustomFractal_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e);
 	};
 }
