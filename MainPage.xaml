@@ -82,8 +82,9 @@
                             <StackPanel  Width="275" >
                                 <TextBlock Text="Coloring"></TextBlock>
                                 <GridView Header="Mode">
-                                    <RadioButton x:Name="HSLM" Content="HSL" IsChecked="False"></RadioButton>
+                                    <RadioButton x:Name="HSLM" Content="FCP" IsChecked="False"></RadioButton>
                                     <RadioButton x:Name="RGBM" Content="RGB" IsChecked="True"></RadioButton>
+                                    <RadioButton x:Name="NCPM" Content="NCP" IsChecked="False"></RadioButton>
                                 </GridView>
                                 <GridView Header="Colors">
                                     <CheckBox x:Name="Red" Content="Red" IsChecked="True" ></CheckBox>

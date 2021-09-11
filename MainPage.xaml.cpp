@@ -9,7 +9,6 @@
 #include "MainPage.xaml.h"
 #include <robuffer.h>
 #include <amp_math.h>
-#include "inc/amp_tinymt_rng.h"
 
 #define TO_XY(idnx, minX, minY, disX, disY, height, width) \
 		double y = ((idnx / width) / (height - 1)) * disY + minY, x = ((idnx % (int)width) / (width - 1)) * disX + minX;
@@ -114,63 +113,77 @@ void mandelbrot::MainPage::updateConcurrent()
 	bool has_red = this->Red->IsChecked->Value,
 		has_green = this->Green->IsChecked->Value,
 		has_blue = this->Blue->IsChecked->Value,
-		is_HSV = this->HSLM->IsChecked->Value,
 		isSmooth = this->smoother->IsOn ? 1 : 0;
-	int alphaSrc = this->alphaRgb->Value, alphaVal = rand() % 255, rotations = this->angle; 
+	int alphaSrc = this->alphaRgb->Value, color_mode = this->RGBM->IsChecked->Value ? 0 : this->HSLM->IsChecked->Value? 1:2, alphaVal = 255, rotations = this->angle;
 	bool FlipV = this->vertFlip; bool FlipH = this->horizFlip;
 	concurrency::parallel_for_each(textureView.extent, [=](index<1> idx) restrict(amp)
 		{
-				int idnx = idx[0]; 
-				TO_XY(idnx, minX, minY, disX, disY, height, width);
-				auto Color = [](int mode,bool isContinuous, int reached, bool has_r, bool has_g, bool has_b, int is_a, double x_n, double y_n, double lim) {
-					if (mode == 0) {
-						if (!isContinuous) {
-							int b = ((has_b ? reached : 0) % 16 * 16), g = ((has_g ? reached : 0) % 8 * 32);
-							int r = ((has_r ? reached : 0) % 4 * 64), a = is_a & 0x0ff;
-							return ((a & 0x0ff) << 24) | ((r & 0x0ff) << 16) | ((g & 0x0ff) << 8) | (b & 0x0ff);
-						}
-						else {
-							int ColoringIndex = reached - log((x_n * x_n + y_n * y_n)) / log(lim);
-							int b = (has_b ? sin(0.010 * ColoringIndex + 1) * 230 + 25: 0)
-							  , g = (has_g ? sin(0.013 * ColoringIndex + 2) * 230 + 25: 0)
-							  , r = (has_r ? sin(0.016 * ColoringIndex + 4) * 230 + 25: 0)
-						      , a = is_a & 0x0ff;
-							return ((a & 0x0ff) << 24) | ((r & 0x0ff) << 16) | ((g & 0x0ff) << 8) | (b & 0x0ff);
-						}
-					} else {
-						int H = (reached % 16 * 16) % 360, S = (reached % 8 * 32) % 100, V = (reached % 4 * 64) % 100;
-						float s = S / 100;
-						float v = V / 100;
-						float C = s * v;
-						float X = C * (1 - abs(fmod(H / 60.0, 2) - 1));
-						float m = v - C;
-						float r, g, b;
-						if (H >= 0 && H < 60) {
-							r = C, g = X, b = 0;
-						}
-						else if (H >= 60 && H < 120) {
-							r = X, g = C, b = 0;
-						}
-						else if (H >= 120 && H < 180) {
-							r = 0, g = C, b = X;
-						}
-						else if (H >= 180 && H < 240) {
-							r = 0, g = X, b = C;
-						}
-						else if (H >= 240 && H < 300) {
-							r = X, g = 0, b = C;
-						}
-						else {
-							r = C, g = 0, b = X;
-						}
-						int red = (r + m) * 255;
-						int green = (g + m) * 255;
-						int blue = (b + m) * 255;
-						return ((255 & 0x0ff) << 24) | 
-							   ((red & 0x0ff) << 16) | 
-							   ((green & 0x0ff) << 8)|
-							   (blue & 0x0ff);
+			int idnx = idx[0];
+			TO_XY(idnx, minX, minY, disX, disY, height, width);
+			auto Color = [](int mode, bool isContinuous, int reached, bool has_r, bool has_g, bool has_b, int is_a, double x_n, double y_n, double lim, int maxiter) {
+				if (mode == 0) {
+					if (!isContinuous) {
+						int   b = ((has_b ? reached : 0) % 16 * 16)
+							, g = ((has_g ? reached : 0) % 8 * 32)
+							, r = ((has_r ? reached : 0) % 4 * 64)
+							, a = is_a & 0x0ff;
+						return ((a & 0x0ff) << 24) | ((r & 0x0ff) << 16) | ((g & 0x0ff) << 8) | (b & 0x0ff);
 					}
+					else {
+						int ColoringIndex = reached - log((x_n * x_n + y_n * y_n)) / log(lim);
+						int   b = (has_b ? sin(0.010 * ColoringIndex + 1) * 230 + 25 : 0)
+							, g = (has_g ? sin(0.013 * ColoringIndex + 2) * 230 + 25 : 0)
+							, r = (has_r ? sin(0.016 * ColoringIndex + 4) * 230 + 25 : 0)
+							, a = is_a & 0x0ff;
+						return ((a & 0x0ff) << 24) | ((r & 0x0ff) << 16) | ((g & 0x0ff) << 8) | (b & 0x0ff);
+					}
+				}
+				else if (mode == 1) {
+					double counter = (double)(reached - maxiter)/(0 - maxiter);
+					float H = counter * 360, S = counter * 100, V = counter * 100;
+					float s = S / 100, v = V / 100, C = s * v, X = C * (1 - abs(fmod(H / 60.0, 2) - 1)), m = v - C;
+					float r = 0, g = 0, b = 0;
+					if (H >= 0 && H < 60) {
+						r = C, g = X, b = 0;
+					}
+					else if (H >= 60 && H < 120) {
+						r = X, g = C, b = 0;
+					}
+					else if (H >= 120 && H < 180) {
+						r = 0, g = C, b = X;
+					}
+					else if (H >= 180 && H < 240) {
+						r = 0, g = X, b = C;
+					}
+					else if (H >= 240 && H < 300) {
+						r = X, g = 0, b = C;
+					}
+					else {
+						r = C, g = 0, b = X;
+					}
+					int red   = has_b * (r + m) * 255;
+					int green = has_g * (g + m) * 255;
+					int blue  = has_b * (b + m) * 255;
+					return ((is_a & 0x0ff) << 24) |
+						((red & 0x0ff) << 16) |
+						((green & 0x0ff) << 8) |
+						(blue & 0x0ff);
+				}
+				else if (mode == 2) {
+					if (!isContinuous) {
+						int b = 255 - ((has_b ? reached : 0) % 16 * 16), g = 255 - ((has_g ? reached : 0) % 8 * 32);
+						int r = 255 - ((has_r ? reached : 0) % 4 * 64), a = is_a & 0x0ff;
+						return ((a & 0x0ff) << 24) | ((r & 0x0ff) << 16) | ((g & 0x0ff) << 8) | (b & 0x0ff);
+					}
+					else {
+						int ColoringIndex = reached - log((x_n * x_n + y_n * y_n)) / log(lim);
+						int b = 255 - (has_b ? sin(0.010 * ColoringIndex + 1) * 230 + 25 : 0)
+							, g = 255 - (has_g ? sin(0.013 * ColoringIndex + 2) * 230 + 25 : 0)
+							, r = 255 - (has_r ? sin(0.016 * ColoringIndex + 4) * 230 + 25 : 0)
+							, a = 255 - is_a & 0x0ff;
+						return ((a & 0x0ff) << 24) | ((r & 0x0ff) << 16) | ((g & 0x0ff) << 8) | (b & 0x0ff);
+					}
+				}
 				};
 				double c_x, c_y, z_x, z_y;
 				int iter = 0, reached = 0;
@@ -191,7 +204,7 @@ void mandelbrot::MainPage::updateConcurrent()
 						iter++;
 					}
 					reached = iter;
-					textureView[idnx] = Color((int)is_HSV, isSmooth, reached, has_red, has_green, has_blue, alphaSrc == 0 ? 255 : alphaSrc == 1 ? reached : alphaVal, z_x, z_y, lim);
+					textureView[idnx] = Color((int)color_mode, isSmooth, reached, has_red, has_green, has_blue, alphaSrc == 0 ? 255 : (255-(reached/10)%255) , z_x, z_y, lim, max);
 				}
 				else if (fractalIndex == 3 || fractalIndex == 4) {
 					double R = 1; iter = 0;
@@ -206,13 +219,14 @@ void mandelbrot::MainPage::updateConcurrent()
 					}
 					while (z_x * z_x + z_y * z_y < R * R && iter < max)
 					{
-						double xtmp = power((z_x * z_x + z_y * z_y), (n / 2)) * cos(n * atan2(z_y, z_x)) + c_x;
-						z_y = power((z_x * z_x + z_y * z_y), (n / 2)) * sin(n * atan2(z_y, z_x)) + c_y;
+						double temprary = power((z_x * z_x + z_y * z_y), (n / 2));
+						double xtmp = temprary * cos(n * atan2(z_y, z_x)) + c_x;
+						z_y = temprary * sin(n * atan2(z_y, z_x)) + c_y;
 						z_x = xtmp;
 						iter++;
 					}
 					reached = iter;
-					textureView[idnx] = Color((int)is_HSV, isSmooth, reached, has_red, has_green, has_blue, alphaSrc == 0 ? 255 : alphaSrc == 1 ? reached : alphaVal, z_x, z_y, lim);
+					textureView[idnx] = Color((int)color_mode, isSmooth, reached, has_red, has_green, has_blue, alphaSrc == 0 ? 255 : (255 - (reached / 10) % 255), z_x, z_y, lim, max);
 				}
 				else if (fractalIndex == 5 || fractalIndex == 6) {
 					switch (fractalIndex)
@@ -229,7 +243,7 @@ void mandelbrot::MainPage::updateConcurrent()
 						iter++;
 					}
 					reached = iter;
-					textureView[idnx] = Color((int)is_HSV, isSmooth, reached, has_red, has_green, has_blue, alphaSrc == 0 ? 255 : alphaSrc == 1 ? reached : alphaVal, z_x, z_y, lim);
+					textureView[idnx] = Color((int)color_mode, isSmooth, reached, has_red, has_green, has_blue, alphaSrc == 0 ? 255 : (255 - (reached / 10) % 255), z_x, z_y, lim, max);
 				}
 				else if (fractalIndex > 6 && fractalIndex < 12) {
 					c_x = x;  c_y = y; z_x = alpha; z_y = beta; 
